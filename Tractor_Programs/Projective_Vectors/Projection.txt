@@ -1,9 +1,0 @@
-getProjV:=proc(X) local Q, Bf, dimbase, Fv, Xcomps, Xcomps2, realX;
-Q:=DGinformation(X, "ObjectFrame");
-Bf:=DGinformation(Q,"FrameBaseForms");
-dimbase:=nops(Bf);
-Fv:=DGinformation(Q,"FrameFiberVectors");
-Xcomps:=GetComponents(X,Fv);
-Xcomps2:=[seq(Xcomps[i],i=1..dimbase)];
-realX:=DGzip(Xcomps2,Bf,"plus");
-end:
