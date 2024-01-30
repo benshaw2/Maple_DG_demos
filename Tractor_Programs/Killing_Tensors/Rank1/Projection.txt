@@ -1,0 +1,10 @@
+getRnk1:=proc(X) local Bf,dimbase,Fv,Xcomps,Xcomps2,realX;
+#Bf:=DGinformation(Q,"FrameBaseForms");
+Bf:=DGinformation("FrameBaseForms"); #as before, we used to require the name of the bundle.
+dimbase:=nops(Bf);
+#Fv:=DGinformation(Q,"FrameFiberVectors");
+Fv:=DGinformation("FrameFiberVectors");
+Xcomps:=GetComponents(X,Fv);
+Xcomps2:=[seq(Xcomps[i],i=1..dimbase)];
+realX:=DGzip(Xcomps2,Bf,"plus");
+end:

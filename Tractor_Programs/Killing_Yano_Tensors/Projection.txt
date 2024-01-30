@@ -1,0 +1,17 @@
+getKY:=proc(KY,k) local Q, Fv, Bf, dimbase, numF, Fl, Fcomps, Ff, ZERO, RealF;
+Q:=DGinformation(KY, "ObjectFrame");
+Fv:=DGinformation(Q,"FrameFiberVectors");
+Bf:=DGinformation(Q,"FrameBaseForms");
+dimbase:=nops(Bf);
+
+#Fl:=GenerateDGobjects[DGforms](Bf,k);
+Fl:=GenerateForms(Bf,k);
+numF:=nops(Fl);
+Fcomps:=[seq(GetComponents(KY,Fv)[i],i=1..numF)];
+
+Ff:=DGzip([seq(z||i,i=1..numF)],Fl,"plus");
+
+ZERO:=_DG([["form",Q,k],[[[1,1],0]]]);
+RealF:=evalDG(subs([seq(z||i=Fcomps[i],i=1..numF)],Ff)+ZERO);
+
+end:

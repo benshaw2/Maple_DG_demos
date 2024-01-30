@@ -1,0 +1,37 @@
+liftKY:=proc(F,Gamma,Q) local Bv, dimbase, Bf, k, Fl, numF, F1l, numF1, Fv, FA, F1A, dF, dFs, F1, Fcomps, F1comps, COMPS, liftedKY;
+
+Bv:=DGinformation(Q,"FrameBaseVectors");
+dimbase:=nops(Bv);
+Bf:=DGinformation(Q,"FrameBaseForms");
+Fv:=DGinformation(Q,"FrameFiberVectors");
+k:=op(1,op(F))[3];
+
+if k=dimbase then 
+
+evalDG(DGinformation(F,"CoefficientSet")[1]*Fv[1]);
+
+else
+
+#Fl:=GenerateDGobjects[DGforms](Bf,k);
+Fl:=GenerateForms(Bf,k);
+numF:=nops(Fl);
+#F1l:=GenerateDGobjects[DGforms](Bf,k+1);
+F1l:=GenerateForms(Bf,k+1);
+numF1:=nops(F1l);
+Fv:=DGinformation(Q,"FrameFiberVectors");
+
+FA:=[seq(op(1,op(2,op(Fl[i]))[1]),i=1..numF)];
+
+F1A:=[seq(op(1,op(2,op(F1l[i]))[1]),i=1..numF1)];
+
+dF:=CovariantDerivative(F,Gamma);
+dFs:=evalDG(SymmetrizeIndices(dF,[seq(i,i=1..k+1)],"SkewSymmetric"));
+F1:=RearrangeIndices(dFs,[seq(k+2-i,i=1..k+1)]);
+
+Fcomps:=DGinformation(F,"CoefficientList",FA);
+F1comps:=DGinformation(F1,"CoefficientList",F1A);
+COMPS:=ListTools:-FlattenOnce([Fcomps,F1comps]);
+
+liftedKY:=DGzip(COMPS,Fv,"plus");
+fi;
+end:

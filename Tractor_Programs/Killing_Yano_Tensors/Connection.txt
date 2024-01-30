@@ -1,0 +1,85 @@
+KYTracCon:=proc(Gamma,k, curvatureTensor:="") local Q, Bv, dimbase, Bf, Fl, numF, F1l, numF1, Ff, Ft, FA, F1f, F1t, F1A, CT, CTF, m, Fc1b, Fc1c, Fc2, Fc1, F1c1b, F1c1c, F1c1, F1c2, BigMat, f1c2a, f1c2b;
+
+Q:=DGinformation(Gamma, "ObjectFrame");
+Bv:=DGinformation(Q,"FrameBaseVectors");
+dimbase:=nops(Bv);
+Bf:=DGinformation(Q,"FrameBaseForms");
+#Fl:=GenerateDGobjects[DGforms](Bf,k);
+Fl:=GenerateForms(Bf,k);
+
+numF:=nops(Fl);
+
+if dimbase=k then
+
+#This first part deals with the case in which the dimension is equal to the rank.
+
+Ff:=DGzip([seq(z||i,i=1..numF)],Fl,"plus");
+Ft:=convert(Ff,DGtensor);
+FA:=[seq(op(1,op(2,op(Fl[i]))[1]),i=1..numF)];
+
+F1f:=DGzip([0],Fl,"plus");
+F1t:=convert(F1f,DGtensor);
+
+for m in seq(i,i=1..dimbase) do
+Fc1b:=DirectionalCovariantDerivative(Bv[m],Ft,Gamma);
+Fc1c:=[seq( DGinformation(Fc1b,"CoefficientList",[a])[1],a=FA)];
+Fc2:=DGinformation(F1t,"CoefficientList",[seq(ListTools:-FlattenOnce([[m],a]),a=FA)]);
+Fc1:=[seq(Fc2[i]+Fc1c[i],i=1..nops(Fc1c))];
+
+Eqns||m:=ListTools:-Flatten([Fc1]);
+Mat||m:=evalDG(LinearAlgebra:-GenerateMatrix(Eqns||m,[seq(z||i,i=1..numF)])*Bf[m]);
+od;
+
+#Lastly, we will piece together the matrix and build the connection from it.
+
+BigMat:=add(Mat||i,i=1..dimbase);
+#Connection(BigMat);
+Connection(convert(BigMat,DGtensor,[["con_vrt","cov_vrt"],[]]));
+
+#Now we handle all other cases.
+
+else
+
+#F1l:=GenerateDGobjects[DGforms](Bf,k+1);
+F1l:=GenerateForms(Bf,k+1);
+numF1:=nops(F1l);
+
+Ff:=DGzip([seq(z||i,i=1..numF)],Fl,"plus");
+Ft:=convert(Ff,DGtensor);
+FA:=[seq(op(1,op(2,op(Fl[i]))[1]),i=1..numF)];
+
+F1f:=DGzip([seq(z||i,i=1+numF..numF+numF1)],F1l,"plus");
+F1t:=convert(F1f,DGtensor);
+F1A:=[seq(op(1,op(2,op(F1l[i]))[1]),i=1..numF1)];
+
+#CT:=CurvatureTensor(Gamma);
+if DGinformation(curvatureTensor, "ObjectType")="tensor" then CT:=curvatureTensor else CT:=CurvatureTensor(Gamma) fi;
+CTF:=ContractIndices(CT,Ft,[[1,1]]);
+
+for m in seq(i,i=1..dimbase) do
+Fc1b:=DirectionalCovariantDerivative(Bv[m],Ft,Gamma);
+Fc1c:=[seq( DGinformation(Fc1b,"CoefficientList",[a])[1],a=FA)];
+Fc2:=DGinformation(F1t,"CoefficientList",[seq(ListTools:-FlattenOnce([[m],a]),a=FA)]);
+Fc1:=[seq(Fc2[i]+Fc1c[i],i=1..nops(Fc1c))];
+
+F1c1b:=DirectionalCovariantDerivative(Bv[m],F1t,Gamma);
+F1c1c:=[seq( DGinformation(F1c1b,"CoefficientList",[a])[1],a=F1A)];
+
+f1c2a:=evalDG((1)*SymmetrizeIndices(CTF,[seq(k+2-i,i=0..k-2),1],"SkewSymmetric"));
+f1c2b:=evalDG(((-1)^k*(k+1)/k)*SymmetrizeIndices(f1c2a,[seq(k+2-i,i=0..k-2),2,1],"SkewSymmetric"));
+
+F1c2:=[seq(DGinformation(evalDG(k*f1c2b),"CoefficientList",[[a[2],a[1],m,seq(a[i],i=3..k+1)]])[1], a=F1A)];
+
+F1c1:=[seq(F1c2[i] +F1c1c[i],i=1..nops(F1c1c))];
+
+Eqns||m:=ListTools:-Flatten([Fc1,F1c1]);
+Mat||m:=evalDG(LinearAlgebra:-GenerateMatrix(Eqns||m,[seq(z||i,i=1..numF+numF1)])*Bf[m]);
+od;
+
+#Lastly, we will piece together the matrix and build the connection from it.
+
+BigMat:=add(Mat||i,i=1..dimbase);
+#Connection(BigMat);
+Connection(convert(BigMat,DGtensor,[["con_vrt","cov_vrt"],[]]));
+fi;
+end:
