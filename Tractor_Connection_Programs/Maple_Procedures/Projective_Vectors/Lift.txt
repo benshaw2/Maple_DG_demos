@@ -1,0 +1,76 @@
+liftProjV:=proc(X,g,Q, connection:="", inverseMetric:="", curvatureTensor:="") local Bf, dimbase, Bft, Fv, Gamma, gin, CT, numX, X1, Xp, X2, Y2, numH, H, Y3, numF, F, Z, getsome, XA, HA, FA, ZA, Xcomps, h, Hcomps, f, Fcomps, z, Zcomps, COMPS, liftedKV;
+
+Bf:=DGinformation(Q,"FrameBaseForms");
+dimbase:=nops(Bf);
+Bft:=map(convert,Bf,DGtensor);
+Fv:=DGinformation(Q,"FrameFiberVectors");
+#forms2:=GenerateForms(Bf,2);
+#syms2:=map(convert,GenerateSymmetricTensors(Bf,2),DGsymmetrictensor);
+
+#Gamma:=Christoffel(g);
+if DGinformation(connection, "ObjectType")="connection" then Gamma:=connection else Gamma:=Christoffel(g) fi;
+#gin:=InverseMetric(g);
+if DGinformation(inverseMetric, "ObjectType")="tensor" then gin:=inverseMetric else gin:=InverseMetric(g) fi;
+if DGinformation(curvatureTensor, "ObjectType")="tensor" then CT:=curvatureTensor else CT:=CurvatureTensor(Gamma) fi;
+
+numX:=dimbase;
+X1:=GenerateDGobjects[DGtensor]([["cov_bas"],[]]);
+Xp:=DGzip([seq(z||i,i=1..numX)],X1,"plus");
+X2:=GenerateDGobjects[DGtensor]([["cov_bas","cov_bas"],[]]);
+Y2:=DGbasis([seq(Tensor:-YoungSymmetrizer(a, Matrix([[1,2]])), a = X2)]);
+numH:=nops(Y2);
+H:=DGzip([seq(z||i,i=1+numX..numX+numH)],Y2,"plus");
+Y3:=DGbasis([seq(Tensor:-YoungSymmetrizer(a, Matrix([[1],[2]])), a = X2)]);
+numF:=nops(Y3);
+F:=DGzip([seq(z||i,i=1+numX+numH..numX+numH+numF)],Y3,"plus");
+Z:=DGzip([seq(z||i,i=1+numX+numH+numF..numX+numH+numF+dimbase)],X1,"plus");
+
+getsome:=proc(T,Y) local A,B,g,A2,inds,B2,thing,bracket,term;
+A:=Array([]);
+for thing in op(2,op(T)) do
+if nops(op(1,op(1,thing[2]))) = 2 then ArrayTools:-Append(A,op(1,thing));
+fi;
+od;
+B:=[seq(A[i],i=op(2,A))];
+#we now have the bads.
+g:=seq(op(2,op(Y[i])),i=1..nops(Y));
+A2:=Array([]);
+inds:=seq([seq(g[j][i][1],i=1..nops(g[j]))],j=1..nops([g]));
+for bracket in inds do
+for term in bracket do
+if has(B,[term])=false then if has(A2,bracket)=false then ArrayTools:-Append(A2,[term]);
+fi;
+fi;
+od;
+od;
+B2:=ListTools:-FlattenOnce([seq(A2[i],i=op(2,A2))]);
+end;
+
+XA:=getsome(Xp,X1);
+#if dimbase = 2 then XA:= [1,2] else XA:=getsome(X,Y1) fi;
+#if dimbase = 2 then HA:=[[1,2]] else HA:=getsome(H,Y2) fi;
+HA:=getsome(H,Y2);
+if dimbase = 2 then FA:=[[1,2]] else FA:=getsome(F,Y3) fi;
+ZA:=getsome(Z,X1);
+
+Xcomps:=DGinformation(X,"CoefficientList",XA);
+#dummyX:=DGzip([seq(z||i,i=1..dimbase)],Bf,"plus");
+
+h:=evalDG(2*SymmetrizeIndices(CovariantDerivative(X,Gamma),[1,2],"Symmetric"));
+#H:=convert(h,DGsymmetrictensor);
+Hcomps:=DGinformation(h,"CoefficientList",HA);
+
+f:=SymmetrizeIndices(evalDG(CovariantDerivative(X,Gamma)),[1,2],"SkewSymmetric");
+#F:=convert(f,DGform);
+Fcomps:=DGinformation(f,"CoefficientList",FA);
+
+z:=evalDG(1/(2*dimbase+2)*ContractIndices(gin,CovariantDerivative(h,Gamma), [[1,1],[2,2]]));
+#Z1:=ContractIndices(CovariantDerivative(CovariantDerivative(X,Gamma),Gamma), gin, [[2,1],[3,2]]);
+#Z2:=ContractIndices(ContractIndices(CT,X,[[1,1]]),gin,[[1,2],[3,1]]);
+#Z:=evalDG(Z1-Z2);
+Zcomps:=DGinformation(z,"CoefficientList",ZA);
+
+COMPS:=ListTools:-FlattenOnce([Xcomps,Hcomps,Fcomps,Zcomps]);
+liftedKV:=DGzip(COMPS,Fv,"plus");
+end:
+

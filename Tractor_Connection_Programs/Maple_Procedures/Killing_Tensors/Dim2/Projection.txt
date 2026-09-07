@@ -1,0 +1,54 @@
+getDim2kt:=proc(KT,k) local Q, Fv, dimfib, Bv, dimbase, numK, Kcomps, KA, Comps, ak, Ak, realAk, Comps2, Comps3, Comps4, Comps5, ZERO, RealK, makeSymTens, numEl;
+Q:=DGinformation(KT, "ObjectFrame");
+Fv:=DGinformation(Q,"FrameFiberVectors");
+Bv:=DGinformation(Q,"FrameBaseVectors");
+dimbase:=nops(Bv);
+
+numK:=(dimbase+k-1)!/(k!*(dimbase-1)!);
+
+Kcomps:=[seq(GetComponents(KT,Fv)[i],i=1..numK)];
+
+KA:=[seq([seq(1,i=1..k-j),seq(2,i=1..j)],j=0..k)];
+
+#ak:=_DG([["tensor", Q, [[seq("cov_bas",i=1..k)], []]], [ seq([KA[i], z||i],i=1..k+1) ]]);
+#Ak:=SymmetrizeIndices(ak,[seq(i,i=1..k)],"Symmetric");
+
+makeSymTens:=proc(r,s,Q) local KA,list1,tensorArray,i,listList,tens,tensorList,out;
+KA:=r->[seq([seq(1,i=1..r-j),seq(2,i=1..j)],j=0..r)];
+list1:=KA(r);
+tensorArray:=Array([]);
+
+for i in seq(j,j=1..nops(list1)) do
+listList:=combinat:-permute(list1[i],r);
+tens:=_DG([["tensor", Q, [[seq("cov_bas",j=1..r)], []]], [ seq([listList[j], y||(i+s-1)],j=1..nops(listList)) ]]);
+ArrayTools:-Append(tensorArray,tens);
+od;
+
+tensorList:=[seq(tensorArray[j],j=op(2,tensorArray))];
+out:=evalDG(add(tensorList[j],j=1..nops(tensorList)));
+
+end:
+
+#The following short method gets the "starting point" for the rank n-1 tensor for the rank r connection components (need to add 1 later).
+
+numEl:=proc(r,n)
+sum((r+1-q),q=0..(r-n));
+end;
+
+#Here's the rank k tensor:
+
+Ak:=makeSymTens(k,1,Q);
+
+
+Comps:=[seq(DGinformation(Ak,"CoefficientList",[a])[1],a=KA)];
+Comps2:=[seq(y||i,i=1..nops(Comps))];
+Comps3:=[seq(Comps[i] = Comps2[i], i=1..nops(Comps))];
+Comps4:=solve(Comps3,{seq(z||i,i=1..nops(Comps))});
+
+realAk:=evalDG(simplify(subs(Comps4,Ak)));
+
+Comps5:=[seq(Comps2[i] = Kcomps[i], i=1..nops(Kcomps))];
+ZERO:=_DG([["tensor", Q, [[seq("cov_bas",i=1..k)], []]], [[[seq(1,i=1..k)], 0]]]);
+
+RealK:=evalDG(evalDG(simplify(subs(Comps5,realAk)))+ZERO);
+end:

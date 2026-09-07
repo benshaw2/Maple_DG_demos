@@ -1,0 +1,17 @@
+liftrnk1:=proc(X,Gamma,Q) local Bf,dimbase,Bft,Fv,forms2,Xcomps,omega,Omega,Omegacomps,COMPS,liftedKV;
+Bf:=DGinformation(Q,"FrameBaseForms");
+dimbase:=nops(Bf);
+Bft:=map(convert,Bf,DGtensor);
+Fv:=DGinformation(Q,"FrameFiberVectors");
+forms2:=GenerateForms(Bf,2);
+
+Xcomps:=GetComponents(X,Bft);
+#dummyX:=DGzip([seq(z||i,i=1..dimbase)],Bf,"plus");
+
+omega:=evalDG(-CovariantDerivative(X,Gamma));
+Omega:=convert(omega,DGform);
+Omegacomps:=GetComponents(Omega,forms2);
+
+COMPS:=ListTools:-FlattenOnce([Xcomps,Omegacomps]);
+liftedKV:=DGzip(COMPS,Fv,"plus");
+end:

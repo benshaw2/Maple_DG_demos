@@ -1,0 +1,126 @@
+ConfTracConn:=proc(g, connection:="", curvatureTensor:="", ricciTensor:="", inverseMetric:="") local T, Bv, Bf, Gamma, CT, RT, RS, dimbase, Fv, X1, Y1, numX, X, X2, Y2, numW, W, getsome, XA, WA, Comps, Comps2, Comps3, Comps4, realX, realW, XR, Xc2, Xc1, Wc2, Wc1, Xc1b, Xc1c, Wc1b, Wc1c, m, BigMat, gin, Y, numY, F, Z, YA, realY, realF, realZ, YR, term, term1, term2, Xc3, Yc1b, Yc1c, Yc2, Yc3, Yc4, Yc1, Fc2, Fc1, Zc1b, Zc1c, Zc1, Zc2, Zc3, Zc4, Zc5;
+
+T:=DGinformation(g, "ObjectFrame");
+Bv:=DGinformation(T,"FrameBaseVectors"); # used to require that the vector bundle was specified.
+Bf:=DGinformation(T,"FrameBaseForms");
+
+# limited support for the optional arguments.
+if DGinformation(connection, "ObjectType")="connection" then Gamma:=connection else Gamma:=Christoffel(g) fi;
+if DGinformation(curvatureTensor, "ObjectType")="tensor" then CT:=curvatureTensor else CT:=CurvatureTensor(Gamma) fi;
+if DGinformation(ricciTensor, "ObjectType")="tensor" then RT:=ricciTensor else RT:=RicciTensor(g) fi;
+if DGinformation(inverseMetric, "ObjectType")="tensor" then gin:=inverseMetric else gin:=InverseMetric(g) fi;
+#RS:=RicciScalar(g);
+RS:=ContractIndices(gin,RT,[[1,1],[2,2]]);
+
+dimbase:=nops(Bv);
+Fv:=DGinformation(T, "FrameFiberVectors");
+
+#First, create an arbitrary vector:
+
+X1:=GenerateDGobjects[DGtensor]([["cov_bas"],[]]);
+#Y1:=DGbasis([seq(Tensor:-YoungSymmetrizer(a, Matrix([[1]])), a = X1)]);
+#numX:=nops(Y1);
+numX:=nops(X1);
+#X:=DGzip([seq(z||i,i=1..numX)],Y1,"plus");
+X:=DGzip([seq(z||i,i=1..numX)],X1,"plus");
+
+#Now, create an arbitrary rank 2 tensor with the required symmetry.
+
+X2:=GenerateDGobjects[DGtensor]([["cov_bas","cov_bas"],[]]);
+Y2:=DGbasis([seq(Tensor:-YoungSymmetrizer(a, Matrix([[1],[2]])), a = X2)]);
+numY:=nops(Y2);
+Y:=DGzip([seq(z||i,i=1+numX..numX+numY)],Y2,"plus");
+
+F:=z||(1+numX+numY);
+
+Z:=DGzip([seq(z||i,i=2+numX+numY..1+numX+numY+dimbase)],X1,"plus");
+
+#The following procedure is a bit overkill for the Killing vector case. It is intended to give us the index list from which we pick off the independent components of each tensor defined above.
+
+getsome:=proc(T,Y) local A,B,g,A2,inds,B2,thing,bracket,term;
+A:=Array([]);
+for thing in op(2,op(T)) do
+if nops(op(1,op(1,thing[2]))) = 2 then ArrayTools:-Append(A,op(1,thing));
+fi;
+od;
+B:=[seq(A[i],i=op(2,A))];
+#we now have the bads.
+g:=seq(op(2,op(Y[i])),i=1..nops(Y));
+A2:=Array([]);
+inds:=seq([seq(g[j][i][1],i=1..nops(g[j]))],j=1..nops([g]));
+for bracket in inds do
+for term in bracket do
+if has(B,[term])=false then if has(A2,bracket)=false then ArrayTools:-Append(A2,[term]);
+fi;
+fi;
+od;
+od;
+B2:=ListTools:-FlattenOnce([seq(A2[i],i=op(2,A2))]);
+end;
+
+XA:=getsome(X,X1);
+#if dimbase = 2 then XA:= [1,2] else XA:=getsome(X,Y1) fi;
+if dimbase = 2 then YA:=[[1,2]] else YA:=getsome(Y,Y2) fi;
+#WA:=getsome(W,Y2);
+
+#Now, we will get rid of the scalars: terms like z12/2 will be turned into y12.
+
+Comps:=ListTools:-FlattenOnce([[seq(DGinformation(X,"CoefficientList",[a])[1],a=XA)],[seq(DGinformation(Y,"CoefficientList",[a])[1],a=YA)], F,[seq(DGinformation(Z,"CoefficientList",[a])[1],a=XA)]]);
+Comps2:=[seq(y||i,i=1..nops(Comps))];
+Comps3:=[seq(Comps[i] = Comps2[i], i=1..nops(Comps))];
+Comps4:=solve(Comps3,{seq(z||i,i=1..nops(Comps))});
+
+realX:=evalDG(simplify(subs(Comps4,X)));
+realY:=evalDG(simplify(subs(Comps4,Y)));
+realF:=evalDG(simplify(subs(Comps4,F)));
+realZ:=evalDG(simplify(subs(Comps4,Z)));
+
+XR:=ContractIndices(CT,realX,[[1,1]]);
+YR:=ContractIndices(RaiseLowerIndices(gin,RT,[1]),realY,[[1,2]]);
+term:=evalDG(RT-evalDG((RS/(2*(dimbase-1)))*g));
+CovariantDerivative(term,Gamma);
+evalDG(CovariantDerivative(term,Gamma) &t realX);
+gin;
+ContractIndices(evalDG(CovariantDerivative(term,Gamma) &t realX),gin,[[1,1],[2,2]]);
+term1:=evalDG(-(-1)*ContractIndices(evalDG(CovariantDerivative(term,Gamma) &t realX),gin,[[3,1],[4,2]]));
+term2:=evalDG(-2*realF*term);
+
+#Now, we build each piece to the matrix of 1-forms.
+
+for m in seq(i,i=1..dimbase) do
+Xc1b:=DirectionalCovariantDerivative(Bv[m],realX,Gamma);
+Xc1c:=[seq( DGinformation(Xc1b,"CoefficientList",[[a[1]]])[1],a=XA)];
+Xc2:=[seq(DGinformation(realY,"CoefficientList",[[a[1],m]])[1], a=XA)];
+Xc3:=[seq(DGinformation(evalDG(realF*g),"CoefficientList",[[m,a[1]]])[1],a=XA)];
+Xc1:=[seq(Xc2[i]+Xc3[i]+Xc1c[i],i=1..nops(Xc1c))];
+
+Yc1b:=DirectionalCovariantDerivative(Bv[m],realY,Gamma);
+Yc1c:=[seq( DGinformation(Yc1b,"CoefficientList",[[a[1],a[2]]])[1],a=YA)];
+Yc2:=[seq(DGinformation(XR,"CoefficientList",[[m,a[2],a[1]]])[1], a=YA)];
+Yc3:=[seq(DGinformation(evalDG(g &t realZ),"CoefficientList",[[m,a[1],a[2]]])[1],a=YA)];
+Yc4:=[seq(DGinformation(evalDG(-g &t realZ),"CoefficientList",[[m,a[2],a[1]]])[1],a=YA)];
+Yc1:=[seq(Yc2[i] + Yc3[i] + Yc4[i] + Yc1c[i],i=1..nops(Yc1c))];
+
+Fc2:=[DGinformation(realZ,"CoefficientList",[[m]])[1]];
+Fc1:=[seq(Fc2[i],i=1..nops(Fc2))];
+
+Zc1b:=DirectionalCovariantDerivative(Bv[m],realZ,Gamma);
+Zc1c:=[seq( DGinformation(Zc1b,"CoefficientList",[[a[1]]])[1],a=XA)];
+Zc2:=[seq(DGinformation(evalDG((1)/(dimbase-2)*term1),"CoefficientList",[[b[1],m]])[1], b=XA)];
+Zc3:=[seq(DGinformation(evalDG((1)/(dimbase-2)*term2),"CoefficientList",[[b[1],m]])[1], b=XA)];
+Zc4:=[seq(DGinformation(evalDG((1)/(dimbase-2)*YR),"CoefficientList",[[b[1],m]])[1], b=XA)];
+Zc5:=[seq(DGinformation(evalDG((1)/(dimbase-2)*YR),"CoefficientList",[[m,b[1]]])[1], b=XA)];
+Zc1:=[seq(Zc2[i] + Zc3[i] + Zc4[i] + Zc5[i] + Zc1c[i],i=1..nops(Zc1c))];
+
+Eqns||m:=ListTools:-Flatten([Xc1,Yc1,Fc1,Zc1]);
+Mat||m:=evalDG(LinearAlgebra:-GenerateMatrix(Eqns||m,Comps2)*Bf[m]);
+od;
+
+#Lastly, we will piece together the matrix and build the connection from it.
+
+BigMat:=add(Mat||i,i=1..dimbase);
+#Connection(BigMat);
+Connection(convert(BigMat,DGtensor,[["con_vrt","cov_vrt"],[]]));
+end:
+
+
