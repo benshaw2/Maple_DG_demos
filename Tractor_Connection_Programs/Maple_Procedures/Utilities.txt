@@ -512,13 +512,13 @@ funcs:=[seq(op(op(1,FrobEqns[i]))[1],i=1..nops(FrobEqns))];
 uniFuncs:=ListTools:-MakeUnique(funcs);
 allDiffVars:=[seq(op(op(1,FrobEqns[i]))[2],i=1..nops(FrobEqns))];
 uniDiffVars:=ListTools:-MakeUnique(allDiffVars);
-dim:=nops(uniDiffVars);
+dim:=nops(uniFuncs); #nops(uniDiffVars);
 
 # TODO: validate input.
 
 # create the Vector Bundle
 DGEnvironment[Manifold](uniDiffVars,_M);
-DGEnvironment['VectorSpace'](nops(uniDiffVars),_V);
+DGEnvironment['VectorSpace'](nops(uniFuncs),_V);
 DGEnvironment[VectorBundle](_M,_V,_N);
 Bv:=DGinformation(_N,"FrameBaseVectors");
 Fv:=DGinformation(_N, "FrameFiberVectors");
@@ -530,10 +530,10 @@ for m in seq(j,j=1..nops(uniDiffVars)) do
 varEqns:=ListTools:-SearchAll(uniDiffVars[m],allDiffVars);
 varMat:=Matrix(dim, dim, (i,j)->-coeff(rhs(FrobEqns[varEqns[i]]),uniFuncs[j]));
 #print(varMat);
-for n in seq(j,j=1..nops(uniDiffVars)) do
+for n in seq(j,j=1..dim) do
 
 t1:=add( seq(varMat[j,n]*Fv[j],j=1..nops(Fv)) );
-term:=nabla(Bv[m], Fv[n]) = t1;
+term:=nabla(Bv[m], Fv[n]) = t1 + eval(evalDG(_a*Fv[1]),_a=0);
 
 connectionEqns:=[op(connectionEqns),term];
 
